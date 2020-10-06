@@ -33,6 +33,7 @@ int main(int argc,char* argv[]){
 
     memset(&serv_addr,0,sizeof(serv_addr));
 
+    // inet_addr()函数可以将IP地址转换成为32位整数型数据，在数据类型转换的同时进行网络字节序的转换
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
     serv_addr.sin_port = htons(atoi(argv[2]);

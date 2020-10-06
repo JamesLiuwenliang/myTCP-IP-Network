@@ -6,6 +6,12 @@
 #include <sys/socket.h>
 void error_handling(char *message);
 
+/* 网络字节序统一为大端序，但主流的CPU目前是小端序。所以正确的顺序是先把数据组转换成为大端序格式再进行网络传输
+ * 
+ * htons(),htonl() :h代表主机(host)字节序，n代表网络字节序，s代表short，l代表long(Linux中long型为4个字节)
+ * 
+  
+ */
 int main(int argc, char *argv[])
 {
     int serv_sock;
@@ -31,9 +37,30 @@ int main(int argc, char *argv[])
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(atoi(argv[1]));
+
+    /**
+     * struct sockaddr{
+     *     sa_family_t sin_family; // 地址族(address family)
+     *     char sa_data[14];    // 地址信息 
+     * }
+     * 
+     * struct sockaddr_in{
+     *     sa_family_t sin_family ;// 地址族
+     *     uint16_t sin_port ;     // 16位端口号
+     *     struct in_addr;     // 32位IP地址
+     *     char sin_zero[8]; // 不使用，必须填0  
+     * }
+     * 
+     */
+
     //调用 bind 函数分配ip地址和端口号
+
+    // 重点关注第二个参数：
+    // bind()函数希望得到sockaddr结构体变量地址值，包括地址族、端口号、IP地址等
     if (bind(serv_sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
         error_handling("bind() error");
+
+    
     //调用 listen 函数将套接字转为可接受连接状态
     if (listen(serv_sock, 5) == -1)
         error_handling("listen() error");
