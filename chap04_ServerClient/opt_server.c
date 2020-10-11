@@ -9,21 +9,21 @@
  * 实现echo，服务端向客户端发送客户端传来的信息
 */
 #define BUF_SIZE 1024
+#define OPSZ 4
 void error_handling(char* message);
 int caculate(int opnum , int opnds[] , char op);
 
 
 int main(int argc,char *argv[]){
+
     int serv_sock ,clnt_sock;
     char message[BUF_SIZE];
 
     int i,recv_cnt , recv_len;
 
-    int result=0;
-    int opnd_cnt = 0;
+    int result=0, count_numbers = 0;
 
     struct sockaddr_in serv_adr,clnt_adr;
-
     socklen_t clnt_adr_sz;
 
     if(argc != 2){
@@ -32,13 +32,11 @@ int main(int argc,char *argv[]){
     }
 
     serv_sock = socket(PF_INET,SOCK_STREAM,0);
-
     if(serv_sock == -1){
         error_handling("socket() error");
     }
 
     memset(&serv_adr, 0,sizeof(serv_adr));
-
     serv_adr.sin_family = AF_INET;
     serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_adr.sin_port = htons(atoi(argv[1]));
@@ -46,7 +44,6 @@ int main(int argc,char *argv[]){
     if(bind(serv_sock, (struct sockaddr* )&serv_adr ,sizeof(serv_adr)) == -1){
         error_handling("bind() error");
     }
-
     if(listen(serv_sock,5) == -1){
         error_handling("lsiten() error");
     }
@@ -56,7 +53,7 @@ int main(int argc,char *argv[]){
     for(i=0 ; i<5 ;i++){
 
         // 操作数
-        opnd_cnt = 0;
+        count_numbers = 0;
         recv_len = 0;
 
         clnt_sock = accept(serv_sock , (struct sockaddr*)&clnt_adr , &clnt_adr_sz );
@@ -66,15 +63,14 @@ int main(int argc,char *argv[]){
         }
 
         // 获得操作数
-        read(clnt_sock, &opnd_cnt ,1);
+        read(clnt_sock, &count_numbers ,1);
 
-        while(opnd_cnt * sizeof(int) > recv_len){
-            recv_cnt = read(clnt_sock,&message[recv_cnt],4);
+        while( (count_numbers * OPSZ +1) > recv_len){
+            recv_cnt = read(clnt_sock,&message[recv_len],BUF_SIZE-1);
             recv_len += recv_cnt;
         }
 
-        result = caculate(opnd_cnt,(int *)message,message[recv_len-1]);
-
+        result = caculate(count_numbers,(int *)message,message[recv_len-1]);
         write(clnt_sock,(char*)&result,sizeof(result));         
 
         close(clnt_sock);
@@ -106,7 +102,6 @@ int caculate(int opnum , int opnds[] , char op){
     }
 
     return result;
-
 
 }
 
