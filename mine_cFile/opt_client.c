@@ -18,7 +18,7 @@ int main(int argc,char *argv[]){
     char message[BUF_SIZE];
     char *message_getIn = malloc(4) ;
     int count_numbers =0,result=0 , tmp_In=-1;
-    int i;
+    int i=0;
     int str_len , recv_len , recv_cnt;
     struct sockaddr_in serv_addr;
 
@@ -57,15 +57,35 @@ int main(int argc,char *argv[]){
     // 放总数的
     numbers[0] = i;
 
-    if( !strcmp(message_getIn,"+") || !strcmp(message_getIn,"-") || !strcmp(message_getIn,"*") || !strcmp(message_getIn,"/")){       
-        numbers[i+1] = -1;
+    if( !strcmp(message_getIn,"+") || !strcmp(message_getIn,"-") || !strcmp(message_getIn,"*") || !strcmp(message_getIn,"/")){     
+
+        switch (*message_getIn)
+        {
+            case '+':
+                numbers[i+1] = -1;
+                break;
+            case '-':
+                numbers[i+1] = -2;
+                break;
+            case '*':
+                numbers[i+1] = -3;
+                break;
+            case '/':
+                numbers[i+1] = -4;
+                break;
+            default:
+                numbers[i+1] = -5;
+                break;
+
+        }
+    
     }
 
 
     write(sock,numbers, 48);
     
     
-    //read(sock,&result,RESULT_SIZE);    
+    read(sock,&result,RESULT_SIZE);    
 
     printf("Operation result: %d\n",result);
 

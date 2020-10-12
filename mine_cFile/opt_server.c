@@ -11,14 +11,14 @@
 #define BUF_SIZE 1024
 #define OPSZ 4
 void error_handling(char* message);
-int caculate(int opnum , int opnds[] , char op);
-
+int caculate(int opnum , int opnds[]);
 
 int main(int argc,char *argv[]){
 
     int serv_sock ,clnt_sock;
     char message[BUF_SIZE];
 
+    int numbers[10]={0};
     int i,recv_cnt , recv_len;
 
     int result=0, count_numbers = 0;
@@ -64,16 +64,20 @@ int main(int argc,char *argv[]){
 
         // 获得操作数
         read(clnt_sock, &count_numbers ,4);
-
         printf("Total : %d\r\n",count_numbers);
 
-        // while( (count_numbers * OPSZ +1) > recv_len){
+        for(i=0;i<count_numbers+1;i++){
+            read(clnt_sock, &numbers[i],4);
+            printf("%d , ",numbers[i]);
+        }
+
+        // while( ((count_numbers+1) * OPSZ) > recv_len){
         //     recv_cnt = read(clnt_sock,&message[recv_len],BUF_SIZE-1);
         //     recv_len += recv_cnt;
         // }
 
-        // result = caculate(count_numbers,(int *)message,message[recv_len-1]);
-        // write(clnt_sock,(char*)&result,sizeof(result));         
+        result = caculate(count_numbers,numbers);
+        write(clnt_sock,(char*)&result,sizeof(result));         
 
         close(clnt_sock);
     }
@@ -81,9 +85,26 @@ int main(int argc,char *argv[]){
     return 0;
 }
 
-int caculate(int opnum , int opnds[] , char op){
 
-    int result=opnds[0] ,i=0;
+int caculate(int opnum , int opnds[]){
+
+    int tmp = opnds[opnum];
+    char op;
+    int result = opnds[0],i;
+    
+    switch(tmp){
+        case -1:
+            op = '+';break;
+        case -2:
+            op = '-';break;
+        case -3:
+            op = '*';break;
+        case -4:
+            op = '/';break;
+        default:
+            break;
+    }
+
 
     switch (op)
     {
