@@ -19,6 +19,30 @@ int main(int argc,char* argv[]){
     sock = socket(PF_INET,SOCK_STREAM,0);
     len = sizeof(snd_buf);
 
+    /**
+     * // 地址再分配,减小Time_wait状态的影响
+     * #define True 1
+     * int optlen ;
+     * optlen = sizeof(option);
+     * option = True;
+     * setsockopt(serv_sock , SOL_SOCKET,SO_REUSEADDR,(void*)&option,optlen);
+     * 
+     * /
+    
+    /*
+     * // 禁用Nagle算法
+     * // 除非是传输大文件，否则尽可能不要禁用Nagle算法
+     * int opt_val = 1;
+     * setsockopt(sock,IPPROTO_TCP,TCP_NODELAY,(void *)&opt_val,sizeof(opt_val));
+     *
+     * // 查看Nagle算法的设置状态,opt_val是0的时候表示正在使用Nagle算法
+     * int opt_val;
+     * socklen_t opt_len;
+     * opt_len = sizeof(opt_val);
+     * getsockopt(sock,IPPROTO_TCP,TCP_NODELAY,(void *)&opt_val, &opt_len);
+     * 
+    */
+
     // 获得输入缓冲大小
     state = getsockopt(sock , SOL_SOCKET,SO_SNDBUF ,(void *)&rcv_buf, &len);
     if(state){
