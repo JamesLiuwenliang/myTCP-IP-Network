@@ -8,6 +8,7 @@
 
 /*
  * 利用标准IO库，改善echo函数
+ * 实现半关闭,同时单向发送EOF
 */
 #define BUF_SIZE 1024
 void error_handling(char* message);
@@ -29,7 +30,7 @@ int main(int argc,char *argv[]){
         printf("Usage : %s <port>\n",argv[0]);
         exit(1);
     }
-
+    
 
     serv_sock = socket(PF_INET,SOCK_STREAM,0);
 
@@ -53,37 +54,26 @@ int main(int argc,char *argv[]){
 
     clnt_adr_sz = sizeof(clnt_adr);
 
+    clnt_sock = accept(serv_sock , (struct sockaddr*)&clnt_adr , &clnt_adr_sz );
 
-    
-    
-    for(i=0 ; i<5 ;i++){
+    readFp = fdopen(clnt_sock,"r");
+    // 直接将dup()出来的文件描述符转换为FILE指针给writeFp
+    writeFp =fdopen(dup(clnt_sock),"w");
 
-        clnt_sock = accept(serv_sock , (struct sockaddr*)&clnt_adr , &clnt_adr_sz );
+    fputs("Hello World\n",writeFp);
+    fputs("Hello World\n",writeFp);
+    fputs("Hello World\n",writeFp);
+    fflush(writeFp);
 
-        if(clnt_sock == -1){
-            error_handling("accept() error");
-        }else{
-            printf("Connect client :%d\n",i+1);
-        }
+    // 关闭输出
+    shutdown(fileno(writeFp),SHUT_WR);
+    fclose(writeFp);
 
+    // 依然可以获得信息
+    fgets(message,sizeof(message),readFp);
+    fputs(message,stdout);       
 
-        readFp = fdopen(clnt_sock,"r");
-        writeFp =fdopen(clnt_sock,"w");
-
-        while( !feof(readFp) ){
-            // readFp,writeFp为文件指针
-            fgets(message,BUF_SIZE,readFp);
-            fputs(message,writeFp);
-            // 标准IO提供缓冲的原因，如果不调用fflush(),无法保证一定传到客户端
-            fflush(writeFp);
-        }
-
-        fclose(readFp);
-        fclose(writeFp);
-
-    }
-
-    close(serv_sock);
+    fclose(readFp);
     return 0;
 }
 
