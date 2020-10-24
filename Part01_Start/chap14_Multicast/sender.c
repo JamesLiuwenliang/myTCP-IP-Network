@@ -25,7 +25,7 @@ int main(int argc ,char* argv[]){
         exit(1);
     }
 
-   // 这里和服务端不太一样，是要传入IP和端口的
+    // 这里和服务端不太一样，是要传入IP和端口的
     send_sock = socket(PF_INET,SOCK_DGRAM,0);
     memset(&mul_adr , 0,sizeof(mul_adr));
     mul_adr.sin_family = AF_INET;
