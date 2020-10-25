@@ -24,7 +24,7 @@ int main(int argc ,char* argv[]){
         exit(1);
     }
 
-    // SOCK_DGRAM
+    // SOCK_DGRAM UDP不可以
     sock = socket(PF_INET,SOCK_STREAM,0);
     if(sock == -1){
         error_handling("socket() error");
