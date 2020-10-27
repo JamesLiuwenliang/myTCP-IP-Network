@@ -5,17 +5,21 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <errno.h>
+#include <fcntl.h>
 
-/* select():每次监听到套接字变化，都会向操作系统传递监视对象的信息
- * epoll():仅向操作系统传递一次监视对象的信息，监视范围和内容发生变化的时候，只通知发生变化（只有Linux支持）
- *         默认以条件触发方式工作,只要输入缓冲中还剩数据,就将以事件方式再次注册(如果缓存BUF_SIZE降低,可能会多次调用epoll_wait())
- *         边缘触发：只有第一次缓存中有数据才会注册,之后读取多少即使缓存中有剩余也不会注册,epoll可以更改为边缘触发
+/* 正确的以边缘触发方式工作的回声服务器端
+ *
+ * 边缘触发服务器端实现中必知的两点：
+ * - 通过errno变量验证错误的原因
+ * - 为了完成非阻塞IO,更改套接字特性
  * 
  * */
 
 
 #define BUF_SIZE 100
 #define EPOLL_SIZE 50
+void setNoBlockingMode(int fd);
 void error_handling(char *buf);
 
 int main(int argc ,char* argv[]){
@@ -51,52 +55,60 @@ int main(int argc ,char* argv[]){
         error_handling("listen() error ...");
     }
 
-    // int epoll_create(int size); // 这个size是推荐大小,但Linux不会参考,会动态分配的。
-    // 返回epoll文件描述符,也需要close()掉
     epfd = epoll_create(EPOLL_SIZE);
-
-    // 这个结构体需要malloc重新分配内存
     ep_events = malloc(sizeof(struct epoll_event)*EPOLL_SIZE);
 
-    // 发生需要读取数据的情况(事件)时
+    setNoBlockingMode(serv_sock);
     event.events = EPOLLIN;
     event.data.fd = serv_sock;
-
-    // int epoll_ctl(int epfd,    int op,int fd,struct epoll_event *event);
-    //       epoll的文件描述符;添加删除更改操作;需要注册的监视对象文件描述符;监视对象的事件类型
-    // epfd例程中注册serv_sock文件描述符，主要目的是监视event中的事件(即需要从客户端读取数据的情况)
     epoll_ctl(epfd, EPOLL_CTL_ADD,serv_sock,&event);
 
     while(1){
         
-        // int epoll_wait(int epfd,struct epoll_event* events,int maxevents,int timeout);
-        //返回发生事件的文件描述符数;                   可以保存的最大事件数;等待时间，传递-1为一直等待直到事件发生
         event_cnt = epoll_wait(epfd ,ep_events,EPOLL_SIZE,-1);
         if(event_cnt == -1){
             puts("epoll_wait() error");
             break;
         }
 
+        puts("return epoll_wait()");
+
         for(i=0 ;i<event_cnt;i++){
             // 读到新的事件，增加到结构体数组中中
             if(ep_events[i].data.fd == serv_sock){
                 adr_sz = sizeof(clnt_adr);
                 clnt_sock = accept(serv_sock,(struct sockaddr*)&clnt_adr,&adr_sz);
-                event.events = EPOLLIN;
+                setNoBlockingMode(clnt_sock);
+                // 边缘触发
+                event.events = EPOLLIN | EPOLLET;
                 event.data.fd = clnt_sock;
                 epoll_ctl(epfd,EPOLL_CTL_ADD,clnt_sock,&event);
                 printf("connected client: %d\n",clnt_sock);
             }else{
 
+                // 这里添加while(1)循环：边缘触发方式中，发生事件时需要读取输入缓冲中的所有数据
+                while(1){
 
-                str_len = read(ep_events[i].data.fd ,buf,BUF_SIZE);
-                if(str_len == 0){
-                    epoll_ctl(epfd,EPOLL_CTL_DEL, ep_events[i].data.fd,NULL);
-                    close(ep_events[i].data.fd);
-                    printf("Close client: %d\n",ep_events[i].data.fd);
-                }else{
-                    write(ep_events[i].data.fd,buf,str_len); // echo
+                    str_len = read(ep_events[i].data.fd ,buf,BUF_SIZE);
+                    if(str_len == 0){
+                        epoll_ctl(epfd,EPOLL_CTL_DEL, ep_events[i].data.fd,NULL);
+                        close(ep_events[i].data.fd);
+                        printf("Close client: %d\n",ep_events[i].data.fd);
+                        break;
+                    }else if(str_len < 0){
+                        // 意味着read()函数已经读取了输入缓冲中的全部数据
+                        if(errno == EAGAIN){
+                            break;
+                        }
+                    }else{
+                        write(ep_events[i].data.fd,buf,str_len); // echo
+                    }
+
+
                 }
+
+
+
 
 
             }
@@ -111,6 +123,12 @@ int main(int argc ,char* argv[]){
     close(epfd);
     return 0;
 
+}
+
+void setNoBlockingMode(int fd){
+    /* 将文件套接字改成非阻塞模式*/
+    int flag = fcntl(fd,F_GETFL ,0); // 获得之前设置的属性信息
+    fcntl(fd ,F_SETFL ,flag|O_NONBLOCK); // 添加非阻塞标志
 }
 
 
