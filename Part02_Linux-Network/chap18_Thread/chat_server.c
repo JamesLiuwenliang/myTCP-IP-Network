@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <stdlib.h>
+#include <string.h>
+#include <semaphore.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 /**
- * 简易聊天程序
+ * 简易群聊程序: 访问clnt_cnt 和 clnt_socks[] 即构成临界区
 */
 
 #define BUF_SIZE 100
@@ -19,10 +21,11 @@ void error_handling(char *msg);
 int clnt_cnt = 0;
 int clnt_socks[MAX_CLNT];
 
-pthread_mutex_t mutx;
+pthread_mutex_t mutex;
+
 int main(int argc,char *argv[]){
 
-    int sev_sock ,clnt_sock;
+    int serv_sock ,clnt_sock;
     struct sockaddr_in serv_adr,clnt_adr;
 
     int clnt_adr_sz;
@@ -36,7 +39,7 @@ int main(int argc,char *argv[]){
     pthread_mutex_init(&mutex,NULL);
     serv_sock = socket(PF_INET,SOCK_STREAM,0);
 
-    memset(&serv_sock , 0,sizeof(serv_adr));
+    memset(&serv_adr , 0,sizeof(serv_adr));
     serv_adr.sin_family = AF_INET;
     serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_adr.sin_port = htons(atoi(argv[1]));
@@ -44,7 +47,7 @@ int main(int argc,char *argv[]){
     if( bind(serv_sock,(struct sockaddr*)&serv_adr,sizeof(serv_adr)) == -1 ){
         error_handling("bind() error");
     }
-    if(listen(serv_adr , 5) == -1){
+    if(listen(serv_sock , 5) == -1){
         error_handling("listen() error");
     }
 
@@ -53,7 +56,7 @@ int main(int argc,char *argv[]){
         clnt_sock = accept(serv_sock , (struct sockaddr *)&clnt_adr, &clnt_adr_sz);
         pthread_mutex_lock(&mutex);
         clnt_socks[clnt_cnt++] = clnt_sock;
-        pthread_mutex_unclock(&mutex);
+        pthread_mutex_unlock(&mutex);
 
         pthread_create(&t_id,NULL,handle_clnt, (void *)&clnt_sock);
         pthread_detach(t_id);
@@ -95,14 +98,10 @@ void send_msg (char *msg ,int len ){
     int i ;
     pthread_mutex_lock(&mutex);
     for(i=0;i<clnt_cnt;i++){
-        write(clnt_socks[i],msg,len;
+        write(clnt_socks[i],msg,len);
     }
 
     pthread_mutex_unlock(&mutex);
-}
-
-void send_msg(char *msg ,int len){
-
 }
 
 
